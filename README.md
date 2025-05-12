@@ -5,12 +5,12 @@
 - [x] Chunking
 - [x] TTS
 - [x] Audio Merging
-- [ ] Subtitle Generation
+- [x] Subtitle Generation
 - [ ] Image Generation
 - [ ] Video Generation
 
 ## SideQuests
 
-- [ ] Voice Options
-- [ ] Individual Chapter/Section Audios
+- [x] Voice Options
+- [x] Individual Chapter/Section Audios
 - [ ] Youtube Integration

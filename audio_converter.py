@@ -15,9 +15,9 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 pipeline = KPipeline(lang_code="a")
 
 
-def convert_to_audio(text, chunk_id, output_dir):
-    generator = pipeline(text, voice='af_heart')
-    output_path = f'{output_dir}/{chunk_id}.wav'
+def convert_to_audio(text, voice, chunk_id, output_dir):
+    generator = pipeline(text, voice=voice)
+    output_path = f"{output_dir}/{chunk_id}.wav"
 
     for _, _, audio in generator:
         sf.write(output_path, audio, 24000)
@@ -34,7 +34,7 @@ def format_name(raw_name):
     return name
 
 
-def process_introduction_audio(metadata, output_dir):
+def process_introduction_audio(metadata, output_dir, voice):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -58,7 +58,9 @@ def process_introduction_audio(metadata, output_dir):
         )
 
     chunk_id = "introduction"
-    audio_path, _ = convert_to_audio(text=intro, chunk_id=chunk_id, output_dir=output_dir)
+    audio_path, _ = convert_to_audio(
+        text=intro, chunk_id=chunk_id, output_dir=output_dir, voice=voice
+    )
 
     subtitle_data = [{"audio": f"{chunk_id}.wav", "text": intro}]
     subtitle_json_path = os.path.join(output_dir, "subtitles.json")
@@ -69,17 +71,20 @@ def process_introduction_audio(metadata, output_dir):
     generate_srt_from_subtitles_json(
         subtitle_json_path=subtitle_json_path,
         audio_dir=output_dir,
-        output_srt_path=os.path.join(output_dir, "introduction.srt")
+        output_srt_path=os.path.join(output_dir, "introduction.srt"),
     )
 
     print("Introduction Audio Generated Successfully..")
 
-    return os.path.join(output_dir, "introduction.wav"), os.path.join(output_dir, "introduction.srt")
+    return os.path.join(output_dir, "introduction.wav"), os.path.join(
+        output_dir, "introduction.srt"
+    )
 
-def process_texts_to_audio(input_dir, output_dir):
+
+def process_texts_to_audio(input_dir, output_dir, voice):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    
+
     chapter_audio_paths = []
     chapter_srt_paths = []
 
@@ -101,10 +106,16 @@ def process_texts_to_audio(input_dir, output_dir):
                 chunk_id_str = f"{chunk_id:06d}"
                 # print(f"  Chunk {chunk_id_str}:")
                 # print(f"  {chunk[:60]}..." if len(chunk) > 60 else f"  {chunk}")
-                audio_path, text = convert_to_audio(chunk, chunk_id_str, chapter_dir)
-                subtitle_data.append({"audio": os.path.basename(audio_path), "text": text})
+                audio_path, text = convert_to_audio(
+                    text=chunk,
+                    chunk_id=chunk_id_str,
+                    output_dir=chapter_dir,
+                    voice=voice,
+                )
+                subtitle_data.append(
+                    {"audio": os.path.basename(audio_path), "text": text}
+                )
                 chunk_id += 1
-            
 
             subtitle_json_path = os.path.join(chapter_dir, "subtitles.json")
             with open(subtitle_json_path, "w", encoding="utf-8") as f:
@@ -118,8 +129,8 @@ def process_texts_to_audio(input_dir, output_dir):
             generate_srt_from_subtitles_json(
                 subtitle_json_path=subtitle_json_path,
                 audio_dir=chapter_dir,
-                output_srt_path=chapter_srt_path
+                output_srt_path=chapter_srt_path,
             )
             chapter_srt_paths.append(chapter_srt_path)
-    
+
     return chapter_audio_paths, chapter_srt_paths
