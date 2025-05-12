@@ -10,7 +10,6 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 pipeline = KPipeline(lang_code='a')
 def convert_to_audio(text, chunk_id, output_dir):
-    print(text)
     generator = pipeline(text, voice='af_heart')
     for i, (gs, ps, audio) in enumerate(generator):
         sf.write(f'{output_dir}/{chunk_id}.wav', audio, 24000)
@@ -58,10 +57,10 @@ def process_texts_to_audio(input_dir, output_dir):
     for file_name in os.listdir(input_dir):
         if file_name.endswith(".txt"):
             txt_path = os.path.join(input_dir, file_name)
-            base_name = os.path.splitext(file_name)[0]
-            audio_output_dir = os.path.join(output_dir, base_name)
+            # base_name = os.path.splitext(file_name)[0]
+            # audio_output_dir = os.path.join(output_dir, base_name)
 
-            os.makedirs(audio_output_dir, exist_ok=True)
+            os.makedirs(output_dir, exist_ok=True)
 
             print(f"\nProcessing file: {file_name}")
 
@@ -70,8 +69,8 @@ def process_texts_to_audio(input_dir, output_dir):
                 # print(f"  Chunk {chunk_id_str}:")
                 # print(f"  {chunk[:60]}..." if len(chunk) > 60 else f"  {chunk}")
 
-                convert_to_audio(chunk, chunk_id_str, audio_output_dir)
+                convert_to_audio(chunk, chunk_id_str, output_dir)
                 chunk_id += 1
 
-            print(f"  --> {chunk_id} chunks processed and saved to {audio_output_dir}")
+            print(f"  --> {chunk_id} chunks processed and saved to {output_dir}")
             print("-" * 60)

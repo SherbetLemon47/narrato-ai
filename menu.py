@@ -5,6 +5,7 @@ from downloader import get_gutenberg_metadata_epub
 from ebook_parser import extract_chapters_from_epub
 from audio_converter import process_texts_to_audio, process_introduction_audio
 from audio_merger import merge_audio_files
+from yaspin import yaspin
 
 confirm = False
 while not confirm:
@@ -42,13 +43,26 @@ while not confirm:
         confirm = inquirer.confirm(message="Proceed with Audiobook Conversion?").execute()
         if not confirm:
             break
-        print("Generating Introduction..")
-        process_introduction_audio(metadata,output_dir=f"{metadata['Title']}/audio/")
+
         print("Starting AudioBook Generation")
-        print("Generating Audio Segments...")
-        process_texts_to_audio(input_dir=f"{metadata['Title']}/chapters/",output_dir=f"{metadata['Title']}/audio/")
-        print("Merging Audio...")
-        merge_audio_files(intro_path=f"{metadata['Title']}/audio/introduction.wav",folder_path=f"{metadata['Title']}/audio/", output_file=f"{metadata['Title']}/audiobook.wav" )
+
+        with yaspin(text="🎙️ Generating Introduction...", color="cyan") as spinner:
+            process_introduction_audio(metadata, output_dir=f"{metadata['Title']}/audio/")
+            spinner.ok("✅")
+
+        with yaspin(text="🎧 Generating Chapter Audio...", color="cyan") as spinner:
+            process_texts_to_audio(input_dir=f"{metadata['Title']}/chapters/", output_dir=f"{metadata['Title']}/audio/")
+            spinner.ok("✅")
+
+        with yaspin(text="🔊 Merging Audio Files...", color="cyan") as spinner:
+            merge_audio_files(
+                intro_path=f"{metadata['Title']}/audio/introduction.wav",
+                folder_path=f"{metadata['Title']}/audio/",
+                output_file=f"{metadata['Title']}/audiobook.wav"
+            )
+            spinner.ok("✅")
+
+
     if not confirm:
         continue
 
