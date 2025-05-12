@@ -9,6 +9,84 @@ def sanitize_filename(title):
     return re.sub(r'[\\/*?:"<>|]', "", title).strip().replace(" ", "_")
 
 
+ROMAN_NUMERAL_MAP = {
+    "M": 1000,
+    "CM": 900,
+    "D": 500,
+    "CD": 400,
+    "C": 100,
+    "XC": 90,
+    "L": 50,
+    "XL": 40,
+    "X": 10,
+    "IX": 9,
+    "V": 5,
+    "IV": 4,
+    "I": 1,
+}
+
+
+def roman_to_int(roman):
+    roman = roman.upper()
+    i = 0
+    num = 0
+    while i < len(roman):
+        if i + 1 < len(roman) and roman[i : i + 2] in ROMAN_NUMERAL_MAP:
+            num += ROMAN_NUMERAL_MAP[roman[i : i + 2]]
+            i += 2
+        elif roman[i] in ROMAN_NUMERAL_MAP:
+            num += ROMAN_NUMERAL_MAP[roman[i]]
+            i += 1
+        else:
+            return None
+    return num
+
+
+def convert_title_roman_numerals(title):
+    def replacer(match):
+        roman = match.group(1)
+        integer = roman_to_int(roman)
+        if integer:
+            return match.group(0).replace(roman, str(integer))
+        return match.group(0)
+
+    title = re.sub(
+        r"\b(Chapter|Book|Part)\s+([IVXLCDM]+)\b",
+        lambda m: f"{m.group(1)} {roman_to_int(m.group(2)) or m.group(2)}",
+        title,
+        flags=re.IGNORECASE,
+    )
+
+    title = re.sub(
+        r"^([IVXLCDM]+)(\.?)(\s|$)",
+        lambda m: f"{roman_to_int(m.group(1)) or m.group(1)}{m.group(2)}{m.group(3)}",
+        title,
+    )
+
+    return title
+
+
+def strip_redundant_heading(title, content):
+    lines = content.strip().splitlines()
+    if not lines:
+        return content
+
+    first_line = lines[0].strip()
+    normalized_title = re.sub(r"\W+", "", title).lower()
+    normalized_first_line = re.sub(r"\W+", "", first_line).lower()
+
+    if (
+        normalized_first_line in normalized_title
+        or normalized_title in normalized_first_line
+    ):
+        return "\n".join(lines[1:]).strip()
+
+    if re.match(r"^(chapter\s*)?[ivxlcdm\d]+\.*$", first_line, re.IGNORECASE):
+        return "\n".join(lines[1:]).strip()
+
+    return content
+
+
 def extract_chapter_text(soup, start_id, next_id=None):
     content = []
     start_elem = soup.find(id=start_id)
@@ -57,13 +135,17 @@ def extract_chapters_from_epub(epub_file, output_dir="chapters", debug=False):
         for idx, item in enumerate(items):
             if isinstance(item, tuple) and len(item) == 2:
                 part_title, children = item
-                part_title_str = (
-                    part_title.title.strip()
-                    if isinstance(part_title, epub.Link)
-                    else str(part_title).strip()
-                )
+
+                if isinstance(part_title, epub.Link):
+                    part_title_str = part_title.title.strip()
+                elif isinstance(part_title, epub.Section):
+                    part_title_str = part_title.title.strip()
+                else:
+                    part_title_str = str(part_title).strip()
+
                 new_prefix = f"{prefix} - {part_title_str}".strip(" -")
                 process_toc_items(children, new_prefix)
+
             elif isinstance(item, epub.Link):
                 title = item.title.strip()
                 if title.lower() in [
@@ -108,7 +190,9 @@ def extract_chapters_from_epub(epub_file, output_dir="chapters", debug=False):
                     content = soup.get_text().strip()
 
                 if content:
-                    chapters.append({"title": full_title, "content": content})
+                    cleaned_content = strip_redundant_heading(full_title, content)
+                    full_title = convert_title_roman_numerals(full_title)
+                    chapters.append({"title": full_title, "content": cleaned_content})
 
     process_toc_items(book.toc)
 
@@ -131,9 +215,11 @@ def extract_chapters_from_epub(epub_file, output_dir="chapters", debug=False):
                         break
                     content.append(tag.get_text())
                 if content:
-                    chapters.append(
-                        {"title": title, "content": "\n".join(content).strip()}
+                    cleaned_content = strip_redundant_heading(
+                        title, "\n".join(content).strip()
                     )
+                    title = convert_title_roman_numerals(title)
+                    chapters.append({"title": title, "content": cleaned_content})
 
     if debug:
         print(f"\nExtracted {len(chapters)} chapters.")
@@ -170,7 +256,7 @@ def choose_and_save_chapters(chapters, output_dir, debug=False):
             os.makedirs(output_dir)
 
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write(chapter["content"])
+            f.write(chapter["title"] + "\n\n......\n\n" + chapter["content"])
 
         if debug:
             print(f"Saved: {file_name}")
