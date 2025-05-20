@@ -1,0 +1,13 @@
+kokoro
+moviepy
+numpy
+Pillow
+python-dotenv
+google-generativeai
+beautifulsoup4
+InquirerPy
+EbookLib
+pydub
+clint
+requests
+soundfile
